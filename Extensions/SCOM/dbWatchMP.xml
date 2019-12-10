@@ -1,0 +1,714 @@
+<ManagementPack ContentReadable="true" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+  <Manifest>
+    <Identity>
+      <ID>dbWatchMP</ID>
+      <Version>1.0.0.63</Version>
+    </Identity>
+    <Name>dbWatchMP</Name>
+    <References>
+      <Reference Alias="SC">
+        <ID>Microsoft.SystemCenter.Library</ID>
+        <Version>6.1.7221.0</Version>
+        <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
+      </Reference>
+      <Reference Alias="Windows">
+        <ID>Microsoft.Windows.Library</ID>
+        <Version>6.1.7221.0</Version>
+        <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
+      </Reference>
+      <Reference Alias="Health">
+        <ID>System.Health.Library</ID>
+        <Version>6.1.7221.0</Version>
+        <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
+      </Reference>
+      <Reference Alias="System">
+        <ID>System.Library</ID>
+        <Version>6.1.7221.0</Version>
+        <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
+      </Reference>
+      <Reference Alias="Performance">
+        <ID>System.Performance.Library</ID>
+        <Version>6.1.7221.0</Version>
+        <PublicKeyToken>31bf3856ad364e35</PublicKeyToken>
+      </Reference>
+    </References>
+  </Manifest>
+  <TypeDefinitions>
+    <EntityTypes>
+      <ClassTypes>
+        <ClassType ID="dbWatchMP.dbWatch" Accessibility="Internal" Abstract="false" Base="Windows!Microsoft.Windows.LocalApplication" Hosted="true" Singleton="false">
+          <Property ID="Version" Type="string" Key="false" CaseSensitive="false" Length="256" MinLength="0" />
+        </ClassType>
+        <ClassType ID="dbWatchMP.dbWatchCheck" Accessibility="Internal" Abstract="false" Base="Windows!Microsoft.Windows.ApplicationComponent" Hosted="true" Singleton="false">
+          <Property ID="CheckName" Type="string" Key="true" CaseSensitive="false" Length="256" MinLength="0" />
+        </ClassType>
+        <ClassType ID="dbWatchMP.dbWatchDatabaseInstance" Accessibility="Internal" Abstract="false" Base="Windows!Microsoft.Windows.ApplicationComponent" Hosted="true" Singleton="false">
+          <Property ID="GivenName" Type="string" Key="true" CaseSensitive="false" Length="256" MinLength="0" />
+          <Property ID="Host" Type="string" Key="false" CaseSensitive="false" Length="256" MinLength="0" />
+        </ClassType>
+      </ClassTypes>
+      <RelationshipTypes>
+        <RelationshipType ID="dbWatchMP.dbWatchDatabaseInstanceHostsdbWatchCheck" Accessibility="Internal" Abstract="false" Base="System!System.Hosting">
+          <Source>dbWatchMP.dbWatchDatabaseInstance</Source>
+          <Target>dbWatchMP.dbWatchCheck</Target>
+        </RelationshipType>
+        <RelationshipType ID="dbWatchMP.dbWatchHostsdbWatchDatabaseInstance" Accessibility="Internal" Abstract="false" Base="System!System.Hosting">
+          <Source>dbWatchMP.dbWatch</Source>
+          <Target>dbWatchMP.dbWatchDatabaseInstance</Target>
+        </RelationshipType>
+      </RelationshipTypes>
+    </EntityTypes>
+  </TypeDefinitions>
+  <Monitoring>
+    <Discoveries>
+      <Discovery ID="dbWatchMP.dbWatch.Discovery" Enabled="true" Target="Windows!Microsoft.Windows.Computer" ConfirmDelivery="false" Remotable="true" Priority="Normal">
+        <Category>Discovery</Category>
+        <DiscoveryTypes>
+          <DiscoveryClass TypeID="dbWatchMP.dbWatch" />
+        </DiscoveryTypes>
+        <DataSource ID="DS" TypeID="Windows!Microsoft.Windows.FilteredRegistryDiscoveryProvider">
+          <ComputerName>$Target/Property[Type="Windows!Microsoft.Windows.Computer"]/NetworkName$</ComputerName>
+          <RegistryAttributeDefinitions>
+            <RegistryAttributeDefinition>
+              <AttributeName>dbWatchExists</AttributeName>
+              <Path>SOFTWARE\ej-technologies\install4j\installations</Path>
+              <PathType>0</PathType>
+              <AttributeType>0</AttributeType>
+            </RegistryAttributeDefinition>
+          </RegistryAttributeDefinitions>
+          <Frequency>120</Frequency>
+          <ClassId>$MPElement[Name="dbWatchMP.dbWatch"]$</ClassId>
+          <InstanceSettings>
+            <Settings>
+              <Setting>
+                <Name>$MPElement[Name="Windows!Microsoft.Windows.Computer"]/PrincipalName$</Name>
+                <Value>$Target/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</Value>
+              </Setting>
+            </Settings>
+          </InstanceSettings>
+          <Expression>
+            <SimpleExpression>
+              <ValueExpression>
+                <XPathQuery Type="String">Values/dbWatchExists</XPathQuery>
+              </ValueExpression>
+              <Operator>Equal</Operator>
+              <ValueExpression>
+                <Value Type="String">true</Value>
+              </ValueExpression>
+            </SimpleExpression>
+          </Expression>
+        </DataSource>
+      </Discovery>
+      <Discovery ID="dbWatchMP.dbWatchCheck.Discovery" Enabled="true" Target="dbWatchMP.dbWatchDatabaseInstance" ConfirmDelivery="false" Remotable="true" Priority="Normal">
+        <Category>Discovery</Category>
+        <DiscoveryTypes>
+          <DiscoveryClass TypeID="dbWatchMP.dbWatchCheck" />
+          <DiscoveryRelationship TypeID="dbWatchMP.dbWatchDatabaseInstanceHostsdbWatchCheck" />
+        </DiscoveryTypes>
+        <DataSource ID="DS" TypeID="Windows!Microsoft.Windows.TimedScript.DiscoveryProvider">
+          <IntervalSeconds>300</IntervalSeconds>
+          <SyncTime />
+          <ScriptName>dbwatchCheckDiscovery.vbs</ScriptName>
+          <Arguments>$MPElement$ $Target/Id$ "$Target/Property[Type="dbWatchMP.dbWatchDatabaseInstance"]/GivenName$" $Target/Host/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</Arguments>
+          <ScriptBody><![CDATA[Option Explicit
+Dim oFSO, sFile, oFile, sText, active, oAPI, SourceId, ManagedEntityId, checkName, sComputerName, dbName, endIndex, startIndex, dbHost, oDiscoveryData, oInstance
+
+SourceId = WScript.Arguments(0)
+ManagedEntityId = WScript.Arguments(1)
+dbName = WScript.Arguments(2)
+sComputerName = WScript.Arguments(3)
+
+Set oAPI = CreateObject("MOM.ScriptAPI")
+Set oDiscoveryData = oAPI.CreateDiscoveryData(0, SourceId, ManagedEntityId)
+
+active = false
+
+Set oFSO = CreateObject("Scripting.FileSystemObject")
+sFile = "[DBW-SCOM-PATH]"
+If oFSO.FileExists(sFile) Then
+  Set oFile = oFSO.OpenTextFile(sFile, 1)
+   Do While Not oFile.AtEndOfStream
+    sText = oFile.ReadLine
+     If Trim(sText) <> "" Then
+	If active And InStr(sText, "DBNAME=[") = 1 Then
+		active = false
+	End If	
+	If InStr(sText, "DBNAME=[" + dbName + "];") = 1 Then
+	      'WScript.Echo sText
+		active = true
+	End If
+	If active And InStr(sText, "CHECK=[") = 1 Then
+	     'WScript.Echo sText
+	
+		endIndex = InStr(sText, "]")
+
+		checkName = Mid(sText,8,endIndex-8)
+
+		Set oInstance = oDiscoveryData.CreateClassInstance("$MPElement[Name='dbWatchMP.dbWatchCheck']$")
+		oInstance.AddProperty "$MPElement[Name='Windows!Microsoft.Windows.Computer']/PrincipalName$", sComputerName
+		oInstance.AddProperty "$MPElement[Name='dbWatchMP.dbWatchDatabaseInstance']/GivenName$", dbName
+		oInstance.AddProperty "$MPElement[Name='dbWatchMP.dbWatchCheck']/CheckName$", checkName
+		oDiscoveryData.AddInstance(oInstance)
+
+	End If
+     End If
+   Loop
+  oFile.Close
+ Else
+  WScript.Echo "The file was not there."
+ End If
+oAPI.Return(oDiscoveryData)]]></ScriptBody>
+          <TimeoutSeconds>60</TimeoutSeconds>
+        </DataSource>
+      </Discovery>
+      <Discovery ID="dbWatchMP.dbWatchDatabaseInstance.Discovery" Enabled="true" Target="dbWatchMP.dbWatch" ConfirmDelivery="false" Remotable="true" Priority="Normal">
+        <Category>Discovery</Category>
+        <DiscoveryTypes>
+          <DiscoveryClass TypeID="dbWatchMP.dbWatchDatabaseInstance" />
+          <DiscoveryRelationship TypeID="dbWatchMP.dbWatchHostsdbWatchDatabaseInstance" />
+        </DiscoveryTypes>
+        <DataSource ID="DS" TypeID="Windows!Microsoft.Windows.TimedScript.DiscoveryProvider">
+          <IntervalSeconds>240</IntervalSeconds>
+          <SyncTime />
+          <ScriptName>dbwatchDatabaseInstanceDiscovery.vbs</ScriptName>
+          <Arguments>$MPElement$ $Target/Id$ $Target/Host/Property[Type="Windows!Microsoft.Windows.Computer"]/PrincipalName$</Arguments>
+          <ScriptBody><![CDATA[Option Explicit
+Dim oFSO, sFile, oFile, sText, SourceId, ManagedEntityId, sComputerName, dbName, endIndex, startIndex, dbHost, oAPI, oDiscoveryData, oInstance
+
+SourceId = WScript.Arguments(0)
+ManagedEntityId = WScript.Arguments(1)
+sComputerName = WScript.Arguments(2)
+Set oAPI = CreateObject("MOM.ScriptAPI")
+Set oDiscoveryData = oAPI.CreateDiscoveryData(0, SourceId, ManagedEntityId)
+
+Set oFSO = CreateObject("Scripting.FileSystemObject")
+sFile = "[DBW-SCOM-PATH]"
+If oFSO.FileExists(sFile) Then
+	Set oFile = oFSO.OpenTextFile(sFile, 1)
+	Do While Not oFile.AtEndOfStream
+		sText = oFile.ReadLine
+		If Trim(sText) <> "" Then
+			If InStr(sText, "DBNAME=[") = 1 Then
+				'WScript.Echo sText
+				endIndex = InStr(sText, "]")
+
+				dbName = Mid(sText,9,endIndex-9)
+
+				'WScript.Echo dbName
+
+				startIndex = Instr(sText, ";HOST=[") + 7
+				endIndex = InStr(startIndex, sText, "]")
+				
+				dbHost = Mid(sText, startIndex, endIndex-startIndex)
+				'WScript.Echo dbHost
+
+				Set oInstance = oDiscoveryData.CreateClassInstance("$MPElement[Name='dbWatchMP.dbWatchDatabaseInstance']$")
+				oInstance.AddProperty "$MPElement[Name='Windows!Microsoft.Windows.Computer']/PrincipalName$", sComputerName
+				oInstance.AddProperty "$MPElement[Name='dbWatchMP.dbWatchDatabaseInstance']/GivenName$", dbName
+				oInstance.AddProperty "$MPElement[Name='dbWatchMP.dbWatchDatabaseInstance']/Host$", dbHost
+				oDiscoveryData.AddInstance(oInstance)
+			End If
+			'WScript.Echo sText
+		End If
+	Loop
+	oFile.Close
+Else
+ 	WScript.Echo "The file was not there."
+End If
+oAPI.Return(oDiscoveryData)]]></ScriptBody>
+          <TimeoutSeconds>60</TimeoutSeconds>
+        </DataSource>
+      </Discovery>
+    </Discoveries>
+    <Monitors>
+      <UnitMonitor ID="dbWatchMP.dbWatchCheckStatus" Accessibility="Internal" Enabled="true" Target="dbWatchMP.dbWatchCheck" ParentMonitorID="Health!System.Health.EntityState" Remotable="true" Priority="Normal" TypeID="Windows!Microsoft.Windows.TimedScript.ThreeStateMonitorType" ConfirmDelivery="false">
+        <Category>AvailabilityHealth</Category>
+        <OperationalStates>
+          <OperationalState ID="Success" MonitorTypeStateID="Success" HealthState="Success" />
+          <OperationalState ID="Warning" MonitorTypeStateID="Warning" HealthState="Warning" />
+          <OperationalState ID="Error" MonitorTypeStateID="Error" HealthState="Error" />
+        </OperationalStates>
+        <Configuration>
+          <IntervalSeconds>120</IntervalSeconds>
+          <SyncTime />
+          <ScriptName>dbWatchCheckStatus.vbs</ScriptName>
+          <Arguments />
+          <ScriptBody><![CDATA[Option Explicit
+Dim oFSO, sFile, oFile, sText, active, checkName, dbName, checkDetails, checkStatus, endIndex, startIndex, oAPI, oBag
+
+Set oAPI = CreateObject("MOM.ScriptAPI")
+
+Set oFSO = CreateObject("Scripting.FileSystemObject")
+sFile = "[DBW-SCOM-PATH]"
+If oFSO.FileExists(sFile) Then
+  Set oFile = oFSO.OpenTextFile(sFile, 1)
+   Do While Not oFile.AtEndOfStream
+    sText = oFile.ReadLine
+     If Trim(sText) <> "" Then
+	If InStr(sText, "DBNAME=[") = 1 Then
+		endIndex = InStr(sText, "]")
+		dbName = Mid(sText,9,endIndex-9)
+	End If	
+	If InStr(sText, "CHECK=[") = 1 Then	
+		endIndex = InStr(sText, "]")
+
+		checkName = Mid(sText,8,endIndex-8)
+              
+		startIndex = InStr(sText, ";STATUS=[") + 9
+		endIndex = InStr(sText, "];DETAILS=[")
+		checkStatus = Mid(sText,startIndex,endIndex-startIndex)
+		checkDetails = Mid(sText, endIndex+11, Len(sText)-(endIndex+12))	      
+ 
+	      Set oBag = oAPI.CreatePropertyBag()
+            Call oBag.AddValue("GivenName", dbName)
+		Call oBag.AddValue("CheckName", checkName)
+		Call oBag.AddValue("Status",checkStatus)
+		Call oBag.AddValue("Details", checkDetails)
+           
+		Call oAPI.AddItem(oBag)
+	End If
+     End If
+   Loop
+  oFile.Close
+ Else
+  WScript.Echo "The file was not there."
+ End If
+
+Call oAPI.ReturnItems
+]]></ScriptBody>
+          <TimeoutSeconds>60</TimeoutSeconds>
+          <ErrorExpression>
+            <And>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Property[@Name='Status']</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">ALARM</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Property[@Name='GivenName']</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">$Target/Host/Property[Type="dbWatchMP.dbWatchDatabaseInstance"]/GivenName$</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Property[@Name='CheckName']</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">$Target/Property[Type="dbWatchMP.dbWatchCheck"]/CheckName$</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+            </And>
+          </ErrorExpression>
+          <WarningExpression>
+            <And>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Property[@Name='Status']</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">WARNING</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Property[@Name='GivenName']</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">$Target/Host/Property[Type="dbWatchMP.dbWatchDatabaseInstance"]/GivenName$</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Property[@Name='CheckName']</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">$Target/Property[Type="dbWatchMP.dbWatchCheck"]/CheckName$</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+            </And>
+          </WarningExpression>
+          <SuccessExpression>
+            <And>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Property[@Name='Status']</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">OK</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Property[@Name='GivenName']</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">$Target/Host/Property[Type="dbWatchMP.dbWatchDatabaseInstance"]/GivenName$</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Property[@Name='CheckName']</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">$Target/Property[Type="dbWatchMP.dbWatchCheck"]/CheckName$</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+            </And>
+          </SuccessExpression>
+        </Configuration>
+      </UnitMonitor>
+      <UnitMonitor ID="dbWatchMP.dbWatchDatabaseInstanceStatus" Accessibility="Internal" Enabled="true" Target="dbWatchMP.dbWatchDatabaseInstance" ParentMonitorID="Health!System.Health.PerformanceState" Remotable="true" Priority="Normal" TypeID="Windows!Microsoft.Windows.TimedScript.ThreeStateMonitorType" ConfirmDelivery="false">
+        <Category>AvailabilityHealth</Category>
+        <OperationalStates>
+          <OperationalState ID="Success" MonitorTypeStateID="Success" HealthState="Success" />
+          <OperationalState ID="Warning" MonitorTypeStateID="Warning" HealthState="Warning" />
+          <OperationalState ID="Error" MonitorTypeStateID="Error" HealthState="Error" />
+        </OperationalStates>
+        <Configuration>
+          <IntervalSeconds>120</IntervalSeconds>
+          <SyncTime />
+          <ScriptName>dbwatchDatabaseInstanceStatus.vbs</ScriptName>
+          <Arguments />
+          <ScriptBody><![CDATA[Option Explicit
+Dim oFSO, sFile, oFile, sText, oAPI, oBag, dbName, dbStatus, active, endIndex, startIndex
+
+Set oAPI = CreateObject("MOM.ScriptAPI")
+
+Set oFSO = CreateObject("Scripting.FileSystemObject")
+sFile = "[DBW-SCOM-PATH]"
+If oFSO.FileExists(sFile) Then
+  Set oFile = oFSO.OpenTextFile(sFile, 1)
+   Do While Not oFile.AtEndOfStream
+     sText = oFile.ReadLine
+     If Trim(sText) <> "" Then
+	If InStr(sText, "DBNAME=[") = 1 Then
+		endIndex = InStr(sText, "]")
+		dbName = Mid(sText,9,endIndex-9)
+
+		startIndex = InStr(sText, ";STATUS=[") + 9
+		endIndex = InStr(sText, "];TIME=[")
+
+		dbStatus = Mid(sText,startIndex,endIndex-startIndex)
+
+		Set oBag = oAPI.CreatePropertyBag()
+		
+		Call oBag.AddValue("Status", dbStatus)
+		Call oBag.addValue("GivenName", dbName)
+
+		Call oAPI.AddItem(oBag)
+	End If
+     End If
+   Loop
+  oFile.Close
+ Else
+  WScript.Echo "The file was not there."
+ End If
+
+Call oAPI.ReturnItems]]></ScriptBody>
+          <TimeoutSeconds>60</TimeoutSeconds>
+          <ErrorExpression>
+            <And>
+              <Expression>
+                <Or>
+                  <Expression>
+                    <SimpleExpression>
+                      <ValueExpression>
+                        <XPathQuery Type="String">Property[@Name='Status']</XPathQuery>
+                      </ValueExpression>
+                      <Operator>Equal</Operator>
+                      <ValueExpression>
+                        <Value Type="String">ALARM</Value>
+                      </ValueExpression>
+                    </SimpleExpression>
+                  </Expression>
+                  <Expression>
+                    <SimpleExpression>
+                      <ValueExpression>
+                        <XPathQuery Type="String">Property[@Name='Status']</XPathQuery>
+                      </ValueExpression>
+                      <Operator>Equal</Operator>
+                      <ValueExpression>
+                        <Value Type="String">LOST CONNECTION</Value>
+                      </ValueExpression>
+                    </SimpleExpression>
+                  </Expression>
+                </Or>
+              </Expression>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Property[@Name='GivenName']</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">$Target/Property[Type="dbWatchMP.dbWatchDatabaseInstance"]/GivenName$</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+            </And>
+          </ErrorExpression>
+          <WarningExpression>
+            <And>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Property[@Name='Status']</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">WARNING</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Property[@Name='GivenName']</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">$Target/Property[Type="dbWatchMP.dbWatchDatabaseInstance"]/GivenName$</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+            </And>
+          </WarningExpression>
+          <SuccessExpression>
+            <And>
+              <Expression>
+                <Or>
+                  <Expression>
+                    <SimpleExpression>
+                      <ValueExpression>
+                        <XPathQuery Type="String">Property[@Name='Status']</XPathQuery>
+                      </ValueExpression>
+                      <Operator>Equal</Operator>
+                      <ValueExpression>
+                        <Value Type="String">OK</Value>
+                      </ValueExpression>
+                    </SimpleExpression>
+                  </Expression>
+                  <Expression>
+                    <SimpleExpression>
+                      <ValueExpression>
+                        <XPathQuery Type="String">Property[@Name='Status']</XPathQuery>
+                      </ValueExpression>
+                      <Operator>Equal</Operator>
+                      <ValueExpression>
+                        <Value Type="String">NOT CONNECTED</Value>
+                      </ValueExpression>
+                    </SimpleExpression>
+                  </Expression>
+                </Or>
+              </Expression>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Property[@Name='GivenName']</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">$Target/Property[Type="dbWatchMP.dbWatchDatabaseInstance"]/GivenName$</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+            </And>
+          </SuccessExpression>
+        </Configuration>
+      </UnitMonitor>
+      <UnitMonitor ID="dbWatchMP.dbWatchServiceMonitor" Accessibility="Internal" Enabled="true" Target="dbWatchMP.dbWatch" ParentMonitorID="Health!System.Health.EntityState" Remotable="true" Priority="Normal" TypeID="Windows!Microsoft.Windows.CheckNTServiceStateMonitorType" ConfirmDelivery="false">
+        <Category>AvailabilityHealth</Category>
+        <OperationalStates>
+          <OperationalState ID="Running" MonitorTypeStateID="Running" HealthState="Success" />
+          <OperationalState ID="NotRunning" MonitorTypeStateID="NotRunning" HealthState="Warning" />
+        </OperationalStates>
+        <Configuration>
+          <ComputerName />
+          <ServiceName>dbWatchService9.2</ServiceName>
+          <CheckStartupType />
+        </Configuration>
+      </UnitMonitor>
+    </Monitors>
+  </Monitoring>
+  <Presentation>
+    <Views>
+      <View ID="dbWatchMP.dbWatchDatabaseInstanceState" Accessibility="Internal" Enabled="true" Target="dbWatchMP.dbWatchDatabaseInstance" TypeID="SC!Microsoft.SystemCenter.StateViewType" Visible="true">
+        <Category>Custom</Category>
+        <Criteria />
+      </View>
+      <View ID="dbWatchMP.dbWatchState" Accessibility="Internal" Enabled="true" Target="dbWatchMP.dbWatch" TypeID="SC!Microsoft.SystemCenter.StateViewType" Visible="true">
+        <Category>Custom</Category>
+        <Criteria />
+      </View>
+    </Views>
+    <Folders>
+      <Folder ID="dbWatchMP.dbWatchViewFolder" Accessibility="Internal" ParentFolder="SC!Microsoft.SystemCenter.Monitoring.ViewFolder.Root" />
+    </Folders>
+    <FolderItems>
+      <FolderItem ElementID="dbWatchMP.dbWatchDatabaseInstanceState" Folder="dbWatchMP.dbWatchViewFolder" />
+      <FolderItem ElementID="dbWatchMP.dbWatchState" Folder="dbWatchMP.dbWatchViewFolder" />
+    </FolderItems>
+  </Presentation>
+  <LanguagePacks>
+    <LanguagePack ID="NOR" IsDefault="false">
+      <DisplayStrings>
+        <DisplayString ElementID="dbWatchMP">
+          <Name>dbWatch MP Test</Name>
+        </DisplayString>
+        <DisplayString ElementID="dbWatchMP.dbWatch">
+          <Name>dbWatch</Name>
+        </DisplayString>
+        <DisplayString ElementID="dbWatchMP.dbWatch" SubElementID="Version">
+          <Name>Version</Name>
+        </DisplayString>
+        <DisplayString ElementID="dbWatchMP.dbWatch.Discovery">
+          <Name>dbWatch Discovery</Name>
+        </DisplayString>
+        <DisplayString ElementID="dbWatchMP.dbWatchCheck">
+          <Name>dbWatch Check</Name>
+        </DisplayString>
+        <DisplayString ElementID="dbWatchMP.dbWatchCheck" SubElementID="CheckName">
+          <Name>CheckName</Name>
+        </DisplayString>
+        <DisplayString ElementID="dbWatchMP.dbWatchCheck.Discovery">
+          <Name>dbWatch Check Discovery</Name>
+        </DisplayString>
+        <DisplayString ElementID="dbWatchMP.dbWatchCheckStatus" SubElementID="Error">
+          <Name>Error</Name>
+        </DisplayString>
+        <DisplayString ElementID="dbWatchMP.dbWatchCheckStatus" SubElementID="Success">
+          <Name>Success</Name>
+        </DisplayString>
+        <DisplayString ElementID="dbWatchMP.dbWatchCheckStatus" SubElementID="Warning">
+          <Name>Warning</Name>
+        </DisplayString>
+        <DisplayString ElementID="dbWatchMP.dbWatchDatabaseInstance">
+          <Name>dbWatch Database Instance</Name>
+        </DisplayString>
+        <DisplayString ElementID="dbWatchMP.dbWatchDatabaseInstance" SubElementID="GivenName">
+          <Name>GivenName</Name>
+        </DisplayString>
+        <DisplayString ElementID="dbWatchMP.dbWatchDatabaseInstance.Discovery">
+          <Name>dbWatch Database Instance Discovery</Name>
+        </DisplayString>
+        <DisplayString ElementID="dbWatchMP.dbWatchDatabaseInstanceHostsdbWatchCheck">
+          <Name>dbWatch Database Instance Hosts dbWatch Check</Name>
+        </DisplayString>
+        <DisplayString ElementID="dbWatchMP.dbWatchDatabaseInstanceState">
+          <Name>Database Instance State</Name>
+        </DisplayString>
+        <DisplayString ElementID="dbWatchMP.dbWatchDatabaseInstanceStatus">
+          <Name>dbWatch Database Instance Status</Name>
+        </DisplayString>
+        <DisplayString ElementID="dbWatchMP.dbWatchDatabaseInstanceStatus" SubElementID="Error">
+          <Name>Error</Name>
+        </DisplayString>
+        <DisplayString ElementID="dbWatchMP.dbWatchDatabaseInstanceStatus" SubElementID="Success">
+          <Name>Success</Name>
+        </DisplayString>
+        <DisplayString ElementID="dbWatchMP.dbWatchDatabaseInstanceStatus" SubElementID="Warning">
+          <Name>Warning</Name>
+        </DisplayString>
+        <DisplayString ElementID="dbWatchMP.dbWatchHostsdbWatchDatabaseInstance">
+          <Name>dbWatch Hosts dbWatch Database Instance</Name>
+        </DisplayString>
+        <DisplayString ElementID="dbWatchMP.dbWatchServiceMonitor">
+          <Name>dbWatch Service Monitor</Name>
+        </DisplayString>
+        <DisplayString ElementID="dbWatchMP.dbWatchState">
+          <Name>dbWatch State</Name>
+        </DisplayString>
+        <DisplayString ElementID="dbWatchMP.dbWatchViewFolder">
+          <Name>dbWatch</Name>
+        </DisplayString>
+      </DisplayStrings>
+    </LanguagePack>
+    <LanguagePack ID="ENU" IsDefault="true">
+      <DisplayStrings>
+        <DisplayString ElementID="dbWatchMP">
+          <Name>dbWatch MP</Name>
+          <Description />
+        </DisplayString>
+        <DisplayString ElementID="dbWatchMP.dbWatch">
+          <Name>dbWatch</Name>
+        </DisplayString>
+        <DisplayString ElementID="dbWatchMP.dbWatch.Discovery">
+          <Name>dbWatch Discovery</Name>
+          <Description />
+        </DisplayString>
+        <DisplayString ElementID="dbWatchMP.dbWatchCheck">
+          <Name>dbWatch Check</Name>
+        </DisplayString>
+        <DisplayString ElementID="dbWatchMP.dbWatchCheck.Discovery">
+          <Name>dbWatch Check Discovery</Name>
+        </DisplayString>
+        <DisplayString ElementID="dbWatchMP.dbWatchCheckStatus">
+          <Name>dbWatch Check Status</Name>
+        </DisplayString>
+        <DisplayString ElementID="dbWatchMP.dbWatchDatabaseInstance">
+          <Name>dbWatch Database Instance</Name>
+        </DisplayString>
+        <DisplayString ElementID="dbWatchMP.dbWatchDatabaseInstance" SubElementID="Host">
+          <Name>Host</Name>
+        </DisplayString>
+        <DisplayString ElementID="dbWatchMP.dbWatchDatabaseInstance.Discovery">
+          <Name>dbWatch Database Instance Discovery</Name>
+        </DisplayString>
+        <DisplayString ElementID="dbWatchMP.dbWatchDatabaseInstanceHostsdbWatchCheck">
+          <Name>dbWatch Database Instance Hosts dbWatch Check</Name>
+        </DisplayString>
+        <DisplayString ElementID="dbWatchMP.dbWatchDatabaseInstanceState">
+          <Name>Database Instance State</Name>
+        </DisplayString>
+        <DisplayString ElementID="dbWatchMP.dbWatchDatabaseInstanceStatus">
+          <Name>dbWatch Database Instance Status</Name>
+        </DisplayString>
+        <DisplayString ElementID="dbWatchMP.dbWatchHostsdbWatchDatabaseInstance">
+          <Name>dbWatch Hosts dbWatch Database Instance</Name>
+        </DisplayString>
+        <DisplayString ElementID="dbWatchMP.dbWatchServiceMonitor">
+          <Name>dbWatch Service Monitor</Name>
+        </DisplayString>
+        <DisplayString ElementID="dbWatchMP.dbWatchState">
+          <Name>dbWatch State</Name>
+        </DisplayString>
+        <DisplayString ElementID="dbWatchMP.dbWatchViewFolder">
+          <Name>dbWatch</Name>
+        </DisplayString>
+      </DisplayStrings>
+    </LanguagePack>
+  </LanguagePacks>
+</ManagementPack>
