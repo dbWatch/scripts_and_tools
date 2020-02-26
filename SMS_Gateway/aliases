@@ -1,0 +1,6 @@
+# See man 5 aliases for format
+postmaster:    root
++47xxxxxxxx:	sms
++47yyyyyyyy:	sms
++47zzzzzzzz:	sms
++63xxxxxxxxxx:	sms
