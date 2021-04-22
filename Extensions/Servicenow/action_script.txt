@@ -1,0 +1,48 @@
+//	Note: current.opened_by is already set to the first UserID that matches the From: email address
+
+current.caller_id = gs.getUserID();
+current.comments = "received from: " + email.origemail + "\n\n" + email.body_text;
+current.short_description = email.subject;
+
+current.category = "inquiry";
+current.incident_state = IncidentState.NEW;
+current.notify = 2;
+current.contact_type = "email";
+
+if (email.body.assign != undefined)
+   current.assigned_to = email.body.assign;
+if (email.body.status!=undefined) {
+	if (email.body.status == "LOST CONNECTION") {
+		current.urgency=1;
+	}
+	if (email.body.status == "ALARM") {
+		current.urgency=2;
+	}
+	if (email.body.status == "WARNING") {
+		current.urgency=3;
+	}
+}
+if (email.body.group!=undefined) {
+	if (email.body.group == "Production") {
+		current.impact=1;
+	}
+	if (email.body.group == "Test") {
+		current.impact=2;
+	}
+	if (email.body.group == "Development") {
+		current.impact=3;
+	}	
+}
+if (email.body.details!=undefined) {
+	current.description=email.body.details;
+}
+
+
+if (email.importance != undefined) {
+   if (email.importance.toLowerCase() == "high") {
+		current.impact = 1;
+		current.urgency = 1;
+   }
+}
+
+current.insert();
