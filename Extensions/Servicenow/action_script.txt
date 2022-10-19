@@ -15,6 +15,9 @@ if (email.body.status!=undefined) {
 	if (email.body.status == "LOST CONNECTION") {
 		current.urgency=1;
 	}
+	if (email.body.status == "RECONNECTION FAILURE") {
+		current.urgency=1;
+	}
 	if (email.body.status == "ALARM") {
 		current.urgency=2;
 	}
