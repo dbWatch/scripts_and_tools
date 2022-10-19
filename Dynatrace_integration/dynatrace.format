@@ -1,0 +1,24 @@
+#The name of the format.
+name=dynatrace
+
+#These patterns are printed at the beginning and at the end of the produced document.
+doc.begin=
+doc.end=
+
+#This pattern is printed after each line.
+doc.line.seperator=\n
+
+#The pattern formats one row.
+#If this property is defined all other properties starting with "row." or "cell." are ignored.
+row.full={$0/data};{$1/data};{$2/data};{$3/data};{$4/data}
+
+#This pattern is printed before and after each row of input.
+row.begin=
+row.end=
+
+#This pattern is printed before and after each cell.
+cell.begin=
+cell.end=
+
+#This pattern is printed as the cell body.
+cell.body={$data}
