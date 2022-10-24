@@ -40,7 +40,7 @@ set DBW_CLI_HOME=C:\Program Files\dbWatch\12.8.10\dbw\bin
 set DBW_CLI_EXEC=dbw.exe
 set OLDPATH=%PATH%
 set CURL_EXEC=curl
-set CURL_OPTS="-L -X POST 'https://dynatrace-tst02/e/5439528f-c145-4a8e-9de6-04a26b4c8d5d/api/v2/metrics/ingest' -H 'Authorization: Api-Token dt0c01.abc123.abcdefjhij1234567890' -H 'Content-Type: text/plain' "
+set CURL_OPTS=-L -X POST 'https://dynatrace-tst02/e/5439528f-c145-4a8e-9de6-04a26b4c8d5d/api/v2/metrics/ingest' -H 'Authorization: Api-Token dt0c01.abc123.abcdefjhij1234567890' -H 'Content-Type: text/plain' 
 set PATH=%DBW_CLI_HOME%;%PATH%
 set PATH=%DBW_CLI_HOME%;C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\
 
@@ -78,8 +78,10 @@ for /F "tokens=1-5 delims=;" %%a in (alarmlist.log) do (
 )
 set /a var1-=1
 for /L %%G in (0,1,%var1%) do (
-%CURL_EXEC% %CURL_OPTS% --data-rwa '!array[%%G][1]!, dt.entity.host=!array[%%G][0]!,!array[%%G][1]!=!array[%%G][4]:~0,100! !array[%%G][3]!'
+REM Remove echo to actually run curl
+echo %CURL_EXEC% %CURL_OPTS% --data-raw '!array[%%G][1]: =.!,dt.entity.host=!array[%%G][0]!,!array[%%G][1]!="!array[%%G][4]:~0,100!" !array[%%G][3]!'
 )
+
 goto :clean_exit
 
 
