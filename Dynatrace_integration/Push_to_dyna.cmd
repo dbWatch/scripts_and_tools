@@ -73,7 +73,9 @@ for /F "tokens=1-5 delims=;" %%a in (alarmlist.log) do (
     set /a var2+=1
 	set array[!var1!][!var2!]=%%d
     set /a var2+=1
-	set array[!var1!][!var2!]=!%%e:e=BLAH!
+	set array[!var1!][!var2!]=%%e
+	set tempval=!array[%var1%][%var2%]:e=blarg!
+	set array[!var1!][!var2!]=%tempval%
 	set /a var1+=1
 )
 set /a var1-=1
