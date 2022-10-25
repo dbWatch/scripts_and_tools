@@ -22,7 +22,7 @@ For /f "tokens=1-3 delims=. " %%a in ('time /t') do (set DIR_TIME=%%a%%b%%c)
 
 call :log "****************************************************"
 call :log "* Push to dyna version 0.1 dbWatch (C) 2022 *"
-call :log "* designed by Per Christopher Undheim              *"
+call :log "* created by Per Christopher Undheim              *"
 call :log "****************************************************"
 
 call :clean_variables
@@ -79,7 +79,7 @@ for /F "tokens=1-5 delims=;" %%a in (alarmlist.log) do (
 set /a var1-=1
 for /L %%G in (0,1,%var1%) do (
 REM Remove echo to actually run curl
-echo %CURL_EXEC% %CURL_OPTS% --data-raw '!array[%%G][1]: =.!,dt.entity.host=!array[%%G][0]!,!array[%%G][1]: =.!="!array[%%G][4]:~0,100!" !array[%%G][3]!'
+echo %CURL_EXEC% %CURL_OPTS% --data-raw '!array[%%G][1]: =.!,dt.entity.host=!array[%%G][0]!,!array[%%G][1]: =.!="!array[%%G][4]:~0,100:\'= !" !array[%%G][3]!'
 )
 
 goto :clean_exit
