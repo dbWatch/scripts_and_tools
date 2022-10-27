@@ -74,14 +74,16 @@ for /F "tokens=1-5 delims=;" %%a in (alarmlist.log) do (
 	set array[!var1!][!var2!]=%%d
     set /a var2+=1
  	set array[!var1!][!var2!]=%%e
-	set tempval=!array[%var1%][%var2%]:'=!
-	set array[!var1!][!var2!]=!tempval!
+	
 	set /a var1+=1
 )
 set /a var1-=1
 for /L %%G in (0,1,%var1%) do (
+REM We just want the first 100 characters from the details message
+set tempval=!array[%%G][4]:~0,100!
 REM Remove echo to actually run curl
-echo %CURL_EXEC% %CURL_OPTS% --data-raw '!array[%%G][1]: =.!,dt.entity.host=!array[%%G][0]!,!array[%%G][1]: =.!="!array[%%G][4]:~0,100!" !array[%%G][3]!'
+echo %CURL_EXEC% %CURL_OPTS% --data-raw '!array[%%G][1]: =.!,dt.entity.host=!array[%%G][0]!,!array[%%G][1]: =.!="!tempval:'=!" !array[%%G][3]!'
+
 )
 
 goto :clean_exit
