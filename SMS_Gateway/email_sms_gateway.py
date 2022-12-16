@@ -92,7 +92,7 @@ for i in mail_ids:
                 print(f'Message: {mail_subject}:{contents}')
                 retval = os.system(f'gammu -c /root/gammurc_USB1 sendsms TEXT {smsnum} -text "{mail_subject}:{contents}"')
                 if retval == 0:
-                    print('we will delete')
+                    print('Return status from gammu OK, we will delete email in IMAP')
                     mail.store(i, "+FLAGS", "\\Deleted")
 
 mail.expunge()
