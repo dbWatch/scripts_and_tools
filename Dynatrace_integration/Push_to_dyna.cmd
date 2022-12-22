@@ -21,7 +21,7 @@ For /f "tokens=1-3 delims=. " %%a in ('date /t') do (set DIR_DATE=%%c%%b%%a)
 For /f "tokens=1-3 delims=. " %%a in ('time /t') do (set DIR_TIME=%%a%%b%%c)
 
 call :log "****************************************************"
-call :log "* Push to dyna version 0.1 dbWatch (C) 2022 *"
+call :log "* Push to dyna version 0.2 dbWatch (C) 2022 *"
 call :log "* created by Per Christopher Undheim              *"
 call :log "****************************************************"
 
@@ -45,7 +45,7 @@ set PATH=%DBW_CLI_HOME%;%PATH%
 set PATH=%DBW_CLI_HOME%;C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\
 
 
-%DBW_CLI_EXEC% ping -server %DBW_SERVER% > check_con.log
+@REM %DBW_CLI_EXEC% ping -server %DBW_SERVER% > check_con.log
 FOR /F "delims=" %%x in ('findstr "OK" check_con.log ') DO (@set PING_ERR=NONE)
 IF "%PING_ERR%"=="" (
 	call :log "Connection to server failed"
@@ -82,6 +82,16 @@ for /L %%G in (0,1,%var1%) do (
 REM We just want the first 100 characters from the details message
 set tempval=!array[%%G][4]:~0,100!
 REM Remove echo to actually run curl
+
+set jobval_tmp=!array[%%G][1]: =.!
+echo Jobval_tmp: !jobval_tmp!
+echo > !jobval_tmp!
+dir /b/l %jobval_tmp% > lower.tmp
+set jobval=<lower.tmp
+del !jobval_tmp!
+@REM del lower.tmp
+echo Jobval: !jobval!
+
 echo %CURL_EXEC% %CURL_OPTS% --data-raw '!array[%%G][1]: =.!,dt.entity.host=!array[%%G][0]!,!array[%%G][1]: =.!="!tempval:'=!" !array[%%G][3]!'
 
 )
