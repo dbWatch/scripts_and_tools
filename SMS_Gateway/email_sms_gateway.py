@@ -1,10 +1,10 @@
 import email
-import imaplib
+import imaplib 
 import re
 import os
 
-EMAIL = 'sms-test@outlook.com'
-PASSWORD = 'nzknskrhgfdasfddfgw'
+EMAIL = 'dbwatchsms@outlook.com'
+PASSWORD = 'dagygoeeikzddspx'
 SERVER = 'outlook.office365.com'
 
 def joinlines(value):
@@ -83,16 +83,18 @@ for i in mail_ids:
             #print(f'From: {mail_from}')
             #print(f'Subject: {mail_subject}')
             #print(f'Content: {mail_content}')
+            tmp_mail_cont = re.sub('["]',"",mail_content)
+            mail_content = tmp_mail_cont
 
             if "+" in mail_to:
                 smsnr = re.search('\+(.*)@',mail_to)
-				smsnum = smsnr.group(1).split("@",1)[0]
+                smsnum = smsnr.group(1).split("@",1)[0] 
                 print(f'Should send to: {smsnum}')
                 contents = joinlines(mail_content)
                 print(f'Message: {mail_subject}:{contents}')
-                retval = os.system(f'gammu -c /root/gammurc_USB1 sendsms TEXT {smsnum} -text "{mail_subject}:{contents}"')
-                if retval == 0:
-                    print('Return status from gammu OK, we will delete email in IMAP')
+                retval = os.system(f'gammu -c /root/gammurc_USB1 sendsms TEXT {smsnum} -text "{mail_subject}:{contents}"')        	
+                if retval == 0: 
+                    print('Return status from gammu OK, we will delete in IMAP')
                     mail.store(i, "+FLAGS", "\\Deleted")
 
 mail.expunge()
