@@ -27,8 +27,11 @@ Add in /etc/apt/sources.list to get gammu on Raspbian Bullseye.
 deb http://ftp.de.debian.org/debian bullseye-backports main
 
 apt-get update
+
 apt-get install libgammu-dev pip && sudo pip3 install python-gammu
+
 apt-get install gammu
+
 pip install imapclient 
 
 Requires a gammu-config file, in /root/gammurc_USB1 if the USB 4G modem is on /dev/ttyUSB1
