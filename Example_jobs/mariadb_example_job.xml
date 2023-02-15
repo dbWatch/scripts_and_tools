@@ -1,0 +1,177 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<dbwatch-task>
+	<comp-query><![CDATA[.[type='instance' & is_mariadb_branch='1']/.[hasengine='YES' & global_status_performance_schema = '1' ]]]></comp-query>
+	<metadata>
+		<data>
+			<value>category:Custom Package</value>
+			<key>category</key>
+		</data>
+	</metadata>
+	<ascheck>
+		<name>Example job</name>
+		<object>dbw_example</object>
+		<description>This job is an example job</description>
+		<long-description>This job is an example job that needs to be modified by the end user</long-description>
+		<version>1.0</version>
+		<company>dbwatch.com</company>
+		<default-schedule>* * * *</default-schedule>
+		<group>com.dbwatch.job</group>
+		<artifactid>oracle_example_job</artifactid>
+		<acknowledgements>true</acknowledgements>
+	</ascheck>
+	<dependencies>
+		<dependency>
+			<object>dbw_example</object>
+			<object-type>2</object-type>
+			<description></description>
+			<cleanup-on-fail>false</cleanup-on-fail>
+		</dependency>
+		<dependency>
+			<object>dbw_example_histr</object>
+			<object-type>0</object-type>
+			<description></description>
+			<cleanup-on-fail>false</cleanup-on-fail>
+		</dependency>
+	</dependencies>
+	<parameters>
+		<parameter>
+			<name>warning threshold</name>
+			<sqltype>6</sqltype>
+			<default-value>10</default-value>
+			<description>Will give a warning if the value exceeds this value.</description>
+		</parameter>
+		<parameter>
+			<name>alarm threshold</name>
+			<sqltype>6</sqltype>
+			<default-value>20</default-value>
+			<description>Will give an alarm if the value use exceeds this value. </description>
+		</parameter>
+		<parameter>
+			<name>keep data for</name>
+			<sqltype>6</sqltype>
+			<default-value>7</default-value>
+			<description>Days to keep data for</description>
+		</parameter>
+	</parameters>
+	<pre-implementation/>
+	<implementation>
+		<code>
+			<![CDATA[ 
+            create table dbw_example_histr (value bigint, histr_date datetime) 
+            ]]>
+		</code>
+		<code>
+			<![CDATA[ 
+            CREATE PROCEDURE dbw_example(taskId int)
+BEGIN 
+
+declare execDetails varchar(1000);
+declare status int default 0;
+declare warning_threshold integer;
+declare alarm_threshold integer;
+declare keep_for integer; 
+declare now_date timestamp(6); 
+declare pos varchar(3);
+
+declare output_value float;
+
+DECLARE EXIT HANDLER FOR SQLEXCEPTION
+BEGIN
+              GET DIAGNOSTICS CONDITION 1 @sqlstate = RETURNED_SQLSTATE, @errno = MYSQL_ERRNO, @text = MESSAGE_TEXT;
+              SET @full_error = CONCAT('Exception ', @errno, ' (', @sqlstate, '): ', @text, '. Pos: ', pos);
+              call dbw_updateCheckValues(taskId, 1,@full_error);
+END;
+
+/* start procedure */ 
+
+set now_date = now();
+set pos ='01';
+
+/* get parameter values */ 
+
+SELECT value INTO warning_threshold FROM dbw_parameters WHERE UPPER(name)=UPPER('warning threshold') and task_id = taskId;
+SELECT value INTO alarm_threshold FROM dbw_parameters WHERE UPPER(name)=UPPER('alarm threshold') and task_id = taskId;
+SELECT value INTO keep_for FROM dbw_parameters WHERE UPPER(name)=UPPER('keep data for') and task_id = taskId;
+
+set pos ='02';
+
+/* get our data */
+
+select 1 into output_value;
+
+
+/* process alarms */
+
+if (output_value > alarm_threshold) then
+              set execDetails = CONCAT('Alarm, value: ',output_value,' larger than ',alarm_threshold);
+              set status = 2;
+else if (output_value > warning_threshold) then
+              set execDetails = CONCAT('Warning, value: ',output_value,' larger than ',warning_threshold);
+              set status = 1;
+    else 
+              set execDetails = CONCAT('OK, value: ',output_value,'. Warning threshold: ',warning_threshold,' Alarm threshold: ',alarm_threshold);
+              set status = 0;
+    end if;
+end if; 
+
+set pos= '03';
+
+/* save history for plotting */
+
+insert into dbw_example_histr (outval, histr_date) values (output_value, now_date);
+commit;
+set pos='04';
+
+/* history housekeeping */
+
+delete from dbw_example_histr where histr_date < DATE_SUB(now(), INTERVAL keep_for DAY);
+commit; 
+set pos='05';
+
+/* update monitoring status */
+
+call dbw_updateCheckValues(taskId, status, execDetails);
+
+END; 
+]]>
+		</code>
+	</implementation>
+	<post-implementation>
+	</post-implementation>
+	<dbwatch-report-template>
+		<version>2</version>
+		<title>Example job</title>
+		<description></description>
+		<default-schedule>0 * * *</default-schedule>
+		<text>Example job</text>
+		<chapter>
+			<type></type>
+			<title>Example job</title>
+			<text></text>
+			<presentations>
+				<presentation>
+					<task-name>Example job</task-name>
+					<company-name>dbwatch.com</company-name>
+					<title>Example job presentation</title>
+					<select-call>select value, histr_date from dbw_example_histr</select-call>
+					<resultset>
+						<column>
+							<name>value</name>
+							<sql-type>0</sql-type>
+						</column>
+						<column>
+							<name>histr_date</name>
+							<sql-type>10</sql-type>
+						</column>
+					</resultset>
+					<table>
+						<to-plot>value</to-plot>
+						<to-plot>histr_date</to-plot>
+					</table>
+				</presentation>
+			</presentations>
+		</chapter>
+	</dbwatch-report-template>
+	<express-install>false</express-install>
+	<force-install>false</force-install>   
+</dbwatch-task>

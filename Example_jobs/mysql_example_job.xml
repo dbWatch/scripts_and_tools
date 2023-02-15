@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <dbwatch-task>
     <comp-query><![CDATA[.[type='instance' & is_mysql_branch='1']/.[hasengine='YES']]]></comp-query>
-    <astask>
+    <metadata>
+        <data>
+            <value>category:Custom Package</value>
+            <key>category</key>
+        </data>
+    </metadata>
+    <ascheck>
         <name>Example job</name>
         <object>dbw_example</object>
         <description>This job is an example job</description>
@@ -11,7 +17,8 @@
         <default-schedule>* * * *</default-schedule>
         <group>com.dbwatch.job</group>
         <artifactid>mysql_example_job</artifactid>
-    </astask>
+        <acknowledgements>true</acknowledgements>
+    </ascheck>
     <dependencies>
         <dependency>
             <object>dbw_example</object>
@@ -51,11 +58,14 @@
     <pre-implementation>
     </pre-implementation>
     <implementation>
-        <code><![CDATA[ create table dbw_example_histr (
-                                          value                                 bigint,
-                                          histr_date   datetime
-                                          ) ]]></code>
-        <code><![CDATA[ CREATE PROCEDURE dbw_example(taskId int)
+        <code>
+            <![CDATA[ 
+            create table dbw_example_histr (value bigint, histr_date datetime) 
+            ]]>
+        </code>
+        <code>
+            <![CDATA[ 
+            CREATE PROCEDURE dbw_example(taskId int)
 BEGIN 
 
 declare execDetails varchar(1000);
@@ -111,7 +121,7 @@ set pos= '03';
 
 /* save history for plotting */
 
-insert into dbw_example_histr (outval, histr_date) values (output_value, now_date);
+insert into dbw_example_histr (value, histr_date) values (execDetails, now_date);
 commit;
 set pos='04';
 
@@ -125,7 +135,9 @@ set pos='05';
 
 call dbw_updateCheckValues(taskId, status, execDetails);
 
-END; ]]></code>
+END; 
+]]>
+        </code>
     </implementation>
     <post-implementation>
     </post-implementation>
@@ -164,12 +176,5 @@ END; ]]></code>
         </chapter>
     </dbwatch-report-template>
     <express-install>false</express-install>
-    <force-install>false</force-install>
-    
-    <metadata>
-        <data>
-            <value>category:Custom Package</value>
-            <key>category</key>
-        </data>
-    </metadata>
+    <force-install>false</force-install>   
 </dbwatch-task>

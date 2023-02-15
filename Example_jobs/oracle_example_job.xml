@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dbwatch-task>
+	<comp-query><![CDATA[.[type='instance' & databasetype='oracle']/.[hasengine='YES']]]></comp-query>
+	<metadata>
+		<data>
+			<value>category:Custom Package</value>
+			<key>category</key>
+		</data>
+	</metadata>
+	<ascheck>
+		<name>Example job</name>
+		<object>dbw_example</object>
+		<description>This job is an example job</description>
+		<long-description>This job is an example job that needs to be modified by the end user</long-description>
+		<version>1.0</version>
+		<company>dbwatch.com</company>
+		<default-schedule>* * * *</default-schedule>
+		<group>com.dbwatch.job</group>
+		<artifactid>oracle_example_job</artifactid>
+		<acknowledgements>true</acknowledgements>
+	</ascheck>
+	<dependencies>
+		<dependency>
+			<object>dbw_example</object>
+			<object-type>2</object-type>
+			<description></description>
+			<cleanup-on-fail>false</cleanup-on-fail>
+		</dependency>
+		<dependency>
+			<object>dbw_example_histr</object>
+			<object-type>0</object-type>
+			<description></description>
+			<cleanup-on-fail>false</cleanup-on-fail>
+		</dependency>
+	</dependencies>
+	<parameters>
+		<parameter>
+			<name>warning threshold</name>
+			<sqltype>6</sqltype>
+			<default-value>10</default-value>
+			<description>Will give a warning if the value exceeds this value.</description>
+		</parameter>
+		<parameter>
+			<name>alarm threshold</name>
+			<sqltype>6</sqltype>
+			<default-value>20</default-value>
+			<description>Will give an alarm if the value use exceeds this value. </description>
+		</parameter>
+		<parameter>
+			<name>keep data for</name>
+			<sqltype>6</sqltype>
+			<default-value>7</default-value>
+			<description>Days to keep data for</description>
+		</parameter>
+	</parameters>
+	<pre-implementation/>
+	<implementation>	
+		<code>
+			<![CDATA[ 
+			create table dbw_example_histr (value number, histr_date date) 
+			]]>
+		</code>
+		<code><![CDATA[ create or replace procedure dbw_example (taskid in number)
+				is
+				
+				now_date date;
+				warning_threshold number;
+				alarm_threshold number;
+				pos varchar2(3);
+				return_info varchar2(1000);
+				keep_data_for number;
+				status number;
+				check_value number;
+				begin
+				now_date:=sysdate;
+				status:=0;
+				pos:='00';
+				
+				select value into warning_threshold from dbw_parameters where name='warning threshold' and task_id = taskid;
+				select value into alarm_threshold from dbw_parameters where name='alarm threshold' and task_id = taskid;
+				select value into keep_data_for from dbw_parameters where name='keep data for' and task_id = taskid;
+				
+				pos:='01';
+				
+				select 1 into check_value from dual;
+				
+				return_info:='Out check value is '||check_value;
+				
+				pos:='02';
+				
+				
+				if check_value > warning_threshold then
+					pos:='03';
+					return_info:= 'Warning, value: '|| check_value ||' larger than ' ||warning_threshold;
+					status:=1;
+				end if;
+				if check_value > alarm_threshold then
+					pos:='04';
+					return_info:= 'Alarm, value: '|| check_value ||' larger than ' ||alarm_threshold;
+					status:=2;
+				end if;
+				
+				pos:='05';
+				
+				insert into dbw_example_histr (value, histr_date) values (check_value, now_date);
+				
+				pos:='06';
+				dbw_updateCheckValues(taskid,status,return_info);
+				pos:='07';
+				delete from dbw_example_histr where histr_date < sysdate - keep_data_for;
+				commit;
+				pos:='08';
+				
+				EXCEPTION
+				WHEN OTHERS
+				THEN
+				 DECLARE
+				 err_code_no NUMBER:=SQLCODE;
+				 err_msg_txt VARCHAR2(300):=SQLERRM;
+				 BEGIN
+				  dbw_updateCheckValues(taskid, 1, 'Exception, '||err_msg_txt);
+				  INSERT INTO DBW_ERRORS
+				  VALUES('EXCEPTION in procedure dbw_example',sysdate,err_code_no,err_msg_txt);
+				  COMMIT;
+				  dbms_output.put_line('EXCEPTION! '||' pos = '||pos);
+				 END;
+				 end dbw_example; ]]>
+		</code>
+		
+	</implementation>
+	<dbwatch-report-template>
+		<version>2</version>
+		<title>Example job</title>
+		<description>Template report based on all tasks and checks.</description>
+		<default-schedule>0 * * *</default-schedule>
+		<text>The dbWatch Report displays data collected by the Example job.</text>
+		<chapter>
+			<type/>
+			<title>Example job</title>
+			<presentations>
+				<presentation>
+					<title>Example job presentation</title>
+					<company-name>dbwatch.com</company-name>
+					<select-call>select value, histr_date from dbw_example_histr</select-call>
+					<resultset>
+						<column>
+							<name>value</name>
+							<sql-type>0</sql-type>
+						</column>
+						<column>
+							<name>histr_date</name>
+							<sql-type>10</sql-type>
+						</column>
+					</resultset>
+					<table>
+						<to-plot>value</to-plot>
+						<to-plot>histr_date</to-plot>
+					</table>
+				</presentation>
+			</presentations>
+		</chapter>
+	</dbwatch-report-template>
+	<replace-on-install/>
+	<post-implementation/>
+	
+	
+	<express-install>false</express-install>
+	<force-install>true</force-install>
+</dbwatch-task>

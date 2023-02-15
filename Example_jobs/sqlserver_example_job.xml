@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dbwatch-task>
+	<comp-query><![CDATA[.[type='instance' & databasetype='sqlserver']/instance[maj_version > '1999' & hasengine='YES' & (engine_edition = 'Microsoft SQL Server' | engine_edition = 'Azure SQL Managed Instance')]]]></comp-query>
+	<metadata>
+		<data>
+			<value>category:Custom Package</value>
+			<key>category</key>
+		</data>
+	</metadata>
+	<ascheck>
+		<name>Example job</name>
+		<object>dbw_example</object>
+		<description>This job is an example job</description>
+		<long-description>This job is an example job that needs to be modified by the end user</long-description>
+		<version>1.0</version>
+		<company>dbwatch.com</company>
+		<default-schedule>* * * *</default-schedule>
+		<group>com.dbwatch.job</group>
+		<artifactid>oracle_example_job</artifactid>
+		<acknowledgements>true</acknowledgements>
+	</ascheck>
+	<dependencies>
+		<dependency>
+			<object>dbw_example</object>
+			<object-type>2</object-type>
+			<description></description>
+			<cleanup-on-fail>false</cleanup-on-fail>
+		</dependency>
+		<dependency>
+			<object>dbw_example_histr</object>
+			<object-type>0</object-type>
+			<description></description>
+			<cleanup-on-fail>false</cleanup-on-fail>
+		</dependency>
+	</dependencies>
+	<parameters>
+		<parameter>
+			<name>warning threshold</name>
+			<sqltype>6</sqltype>
+			<default-value>10</default-value>
+			<description>Will give a warning if the value exceeds this value.</description>
+		</parameter>
+		<parameter>
+			<name>alarm threshold</name>
+			<sqltype>6</sqltype>
+			<default-value>20</default-value>
+			<description>Will give an alarm if the value use exceeds this value. </description>
+		</parameter>
+		<parameter>
+			<name>keep data for</name>
+			<sqltype>6</sqltype>
+			<default-value>7</default-value>
+			<description>Days to keep data for</description>
+		</parameter>
+	</parameters>
+	<pre-implementation/>
+	<implementation>
+		<code>
+			<![CDATA[ 
+            create table dbw_example_histr (value bigint, histr_date datetime) 
+            ]]>
+		</code>
+		<code>
+			<![CDATA[ 
+			CREATE PROCEDURE dbw_example  @taskID INT as
+				BEGIN
+				declare @return_info  VARCHAR(200)
+				declare @warning_threshold int
+				declare @alarm_threshold int 
+				
+				declare @status int
+				
+				now_date date;
+				warning_threshold number;
+				alarm_threshold number;
+				pos varchar2(3);
+				return_info varchar2(1000);
+				keep_data_for number;
+				status number;
+				check_value number;
+				begin
+				now_date:=sysdate;
+				status:=0;
+				pos:='00';
+				
+				select value into warning_threshold from dbw_parameters where name='warning threshold' and task_id = taskid;
+				select value into alarm_threshold from dbw_parameters where name='alarm threshold' and task_id = taskid;
+				select value into keep_data_for from dbw_parameters where name='keep data for' and task_id = taskid;
+				
+				pos:='01';
+				
+				select 1 into check_value from dual;
+				
+				return_info:='Out check value is '||check_value;
+				
+				pos:='02';
+				
+				
+				if check_value > warning_threshold then
+					pos:='03';
+					return_info:= 'Warning, value: '|| check_value ||' larger than ' ||warning_threshold;
+					status:=1;
+				end if;
+				if check_value > alarm_threshold then
+					pos:='04';
+					return_info:= 'Alarm, value: '|| check_value ||' larger than ' ||alarm_threshold;
+					status:=2;
+				end if;
+				
+				pos:='05';
+				
+				insert into dbw_example_histr (value, histr_date) values (check_value, now_date);
+				
+				pos:='06';
+				exec dbw_updateCheckValues @taskID, @status, @return_info
+				pos:='07';
+				delete from dbw_example_histr where histr_date < sysdate - keep_data_for;
+				commit;
+				pos:='08';
+
+			END
+		]]>
+		</code>
+		<code>CREATE PROCEDURE dbw_prog_status @taskID INT as
+BEGIN
+	declare @execDetails  VARCHAR(200)
+	declare @parameter_sql_program  varchar(1024)
+	declare @return_val int 
+	declare @program_status int
+
+SELECT @parameter_sql_program = VALUE FROM DBW_PARAMETERS WHERE UPPER(NAME)=UPPER('program name') and TASK_ID=@taskID
+
+select @program_status = count(*) FROM master.dbo.sysprocesses WHERE program_name = @parameter_sql_program
+
+if @program_status = 0
+begin
+	set @return_val = 1
+	set @execDetails = 'Program [' + @parameter_sql_program +'] is NOT running.'
+end
+else
+begin
+	set @return_val = 0
+	set @execDetails =  'Program [' + @parameter_sql_program +'] is running ('+ convert(varchar(4),@program_status)+' login(s)).' 
+end
+
+exec dbw_updateCheckValues @taskID, @return_val, @execDetails
+
+END</code>
+	</implementation>
+	<post-implementation>
+	</post-implementation>
+	<dbwatch-report-template>
+		<version>2</version>
+		<title>Example job</title>
+		<description></description>
+		<default-schedule>0 * * *</default-schedule>
+		<text>Example job</text>
+		<chapter>
+			<type></type>
+			<title>Example job</title>
+			<text></text>
+			<presentations>
+				<presentation>
+					<task-name>Example job</task-name>
+					<company-name>dbwatch.com</company-name>
+					<title>Example job presentation</title>
+					<select-call>select value, histr_date from dbw_example_histr</select-call>
+					<resultset>
+						<column>
+							<name>value</name>
+							<sql-type>0</sql-type>
+						</column>
+						<column>
+							<name>histr_date</name>
+							<sql-type>10</sql-type>
+						</column>
+					</resultset>
+					<table>
+						<to-plot>value</to-plot>
+						<to-plot>histr_date</to-plot>
+					</table>
+				</presentation>
+			</presentations>
+		</chapter>
+	</dbwatch-report-template>
+	<express-install>false</express-install>
+	<force-install>false</force-install>   
+</dbwatch-task>
