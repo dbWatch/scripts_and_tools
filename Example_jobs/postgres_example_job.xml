@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <dbwatch-task>
-	<comp-query><![CDATA[.[type='instance' & databasetype='postgres']/.[hasengine='YES' & is_awsrds = '0' & maj_version > '11' ]]]></comp-query>
+	<comp-query><![CDATA[.[type='instance' & databasetype='postgres']/.[hasengine='YES']]]></comp-query>
 	<metadata>
 		<data>
 			<value>category:Custom Package</value>
@@ -16,7 +16,7 @@
 		<company>dbwatch.com</company>
 		<default-schedule>* * * *</default-schedule>
 		<group>com.dbwatch.job</group>
-		<artifactid>oracle_example_job</artifactid>
+		<artifactid>postgres_example_job</artifactid>
 		<acknowledgements>true</acknowledgements>
 	</ascheck>
 	<dependencies>
@@ -74,6 +74,7 @@
 				keep_data_for integer;
 				status integer;
 				check_value integer;
+				delete_stmt varchar(256);
 			BEGIN
 				now_date:=CURRENT_TIMESTAMP;
 				status:=0;
@@ -85,9 +86,9 @@
 				
 				pos:='01';
 				
-				select 1 into check_value from dual;
+				select 1 into check_value;
 				
-				return_info:='Out check value is '||check_value;
+				return_info:='OK check value is '||check_value||', Warning value is '||warning_threshold||', Alarm value is '||alarm_threshold||'.';
 				
 				pos:='02';
 				
@@ -110,14 +111,15 @@
 				pos:='06';
 				perform dbw_updatecheckvalues(taskId, status,return_info);
 				pos:='07';
-				delete from dbw_example_histr where histr_date < sysdate - keep_data_for;
-				commit;
+				delete_stmt = 'delete from dbw_example_histr where histr_date < CURRENT_TIMESTAMP - interval ''' || keep_data_for || ' days''';
+				execute delete_stmt;
+				
 				pos:='08';
 				
 				 
 				 END ;$func$
-			LANGUAGE 'plpgsql' VOLATILE;</code> 
-				 ]]>
+			LANGUAGE 'plpgsql' VOLATILE;
+			]]>
 		</code>
 		
 	</implementation>

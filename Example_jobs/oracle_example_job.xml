@@ -84,7 +84,7 @@
 				
 				select 1 into check_value from dual;
 				
-				return_info:='Out check value is '||check_value;
+				return_info:='OK check value is '||check_value||', Warning value is '||warning_threshold||', Alarm value is '||alarm_threshold||'.';
 				
 				pos:='02';
 				

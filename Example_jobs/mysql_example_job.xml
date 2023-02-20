@@ -121,7 +121,7 @@ set pos= '03';
 
 /* save history for plotting */
 
-insert into dbw_example_histr (value, histr_date) values (execDetails, now_date);
+insert into dbw_example_histr (value, histr_date) values (output_value, now_date);
 commit;
 set pos='04';
 

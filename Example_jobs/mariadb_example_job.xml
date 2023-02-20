@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <dbwatch-task>
-	<comp-query><![CDATA[.[type='instance' & is_mariadb_branch='1']/.[hasengine='YES' & global_status_performance_schema = '1' ]]]></comp-query>
+	<comp-query><![CDATA[.[type='instance' & is_mariadb_branch='1']/.[hasengine='YES']]]></comp-query>
 	<metadata>
 		<data>
 			<value>category:Custom Package</value>
@@ -16,7 +16,7 @@
 		<company>dbwatch.com</company>
 		<default-schedule>* * * *</default-schedule>
 		<group>com.dbwatch.job</group>
-		<artifactid>oracle_example_job</artifactid>
+		<artifactid>mariadb_example_job</artifactid>
 		<acknowledgements>true</acknowledgements>
 	</ascheck>
 	<dependencies>
@@ -118,7 +118,7 @@ set pos= '03';
 
 /* save history for plotting */
 
-insert into dbw_example_histr (outval, histr_date) values (output_value, now_date);
+insert into dbw_example_histr (value, histr_date) values (output_value, now_date);
 commit;
 set pos='04';
 
