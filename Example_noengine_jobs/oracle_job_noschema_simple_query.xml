@@ -1,0 +1,92 @@
+<?xml version='1.0' encoding='utf-8'?>
+<properties>
+	<comp-query><![CDATA[.[type='instance' & databasetype='oracle']]]></comp-query>
+	<asproperties>
+		<name>Oracle Simple Query</name>
+		<version>1.0</version>
+		<company>company.com</company>
+		<group>com.company.job</group>
+		<artifactid>oracle_noschema_simple_query</artifactid>
+	</asproperties>	 
+	<property name="_job_noschema_simple_query">
+		<key name="status" entityType="status"/>
+		<key>details</key>	
+		<display-name>Simple Query</display-name>
+		<description>Doing a simple query</description>
+		<category>Availability</category>
+		<parameters>
+			<parameter name="warning_threshold" default="20" type="int" description="Number threshold for warning"/>
+			<parameter name="alarm_threshold" default="5" type="int" description="Number threshold for alarm"/>
+		</parameters>
+		<installable> 
+			<key>_job_noschema_simple_query</key>
+			<compatability><![CDATA[.[databasetype='oracle'] ]]></compatability>
+			<instance>false</instance>
+		</installable>
+		<compatability>.[source like "_job_noschema_simple_query"]/instance</compatability>
+		<default-schedule>1h</default-schedule>
+		<entityType>scheduledtask</entityType>
+		<value engine="sql"> select 10 from dual
+			<instance-resolver>at/instance</instance-resolver>
+		</value>		
+		<value engine="javascript" foreach="row">
+			<![CDATA[
+            	try {
+            		var value=input.get(0).asLong();
+					var status=0;
+					var msg;			
+					if (value > warning_threshold) { 
+						status = 1;
+						msg="Value more than warning threshold" + value +" ";
+					}
+					if (value > alarm_threshold) { 
+						status = 2;
+						msg="Value more than alarm threshold" + value +" ";
+					}
+					else {
+						msg="Value " + value +" ";
+					}
+            		
+					result.setStatus(status, msg);   
+                } 
+                catch (err) {
+                    result.setStatus(2, err.message);                                                            
+                }
+        	]]>
+		</value>
+		<dbwatch-report-template>
+			<version>2</version>
+			<title>Simple Query</title>
+			<description>Simple Query</description>
+			<default-schedule>0 * * *</default-schedule>
+			<text>Simple Query</text>
+			<chapter>
+				<type>
+				</type>
+				<title>Details</title>
+				<text>
+				</text>
+				<presentations>
+					<presentation>
+						<resultset>
+							<column>
+								<name>Details</name>
+								<sql-type>0</sql-type>
+							</column>
+						</resultset>
+						<table>
+							<to-plot>Details</to-plot>
+						</table>
+						<select-call><![CDATA[ select sysdate from dual ]]></select-call>
+						<text>
+							This table shows just the sysdate
+						</text>
+						<title>
+							Details
+						</title>
+					</presentation>
+				</presentations>
+			</chapter>
+		</dbwatch-report-template>
+	</property>
+</properties>
