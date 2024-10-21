@@ -28,6 +28,8 @@ deb http://ftp.de.debian.org/debian bullseye-backports main
 
 apt-get update
 
+apt remove modemmanager
+
 apt-get install libgammu-dev pip && sudo pip3 install python-gammu
 
 apt-get install gammu
