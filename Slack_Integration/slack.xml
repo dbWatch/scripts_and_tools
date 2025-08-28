@@ -1,0 +1,126 @@
+<?xml version='1.0' encoding='utf-8'?>
+<properties>
+	<asproperties>
+		<name>Slack properties</name>
+		<version>1.9</version>
+		<company>dbwatch.com</company>
+		<group>com.dbwatch</group>
+		<artifactid>slack_properties</artifactid>
+	</asproperties>
+	<comp-query>server</comp-query>
+	<property>
+		<key>slacksummary</key>
+		<compatability>server</compatability>
+		<value engine="fdl" outscope="statusres"><![CDATA[server->s/instance->i/groupby(status)->g/$g/_1{}/count($i)]]></value>
+		<value engine="fdl" outscope="lostres"><![CDATA[server->s/instance[status = "LOST CONNECTION"]->i/displayname{}/$i/group{}/$i/subgroup?{}]]></value>
+		<value engine="fdl" outscope="alarmres"><![CDATA[server->s/instance[status = "ALARM"]->i/displayname{}/$i/group{}/$i/subgroup?{}]]></value>
+		<value engine="javascript">
+				<![CDATA[
+				try {
+
+					var statusRows = statusres.getRows();
+					var numRows = statusRows.length;
+					
+					var okCount = 0;
+					var alarmCount = 0;
+					var warningCount = 0;
+					var lostConCount = 0;
+					var notMonCount = 0;
+
+					var summary = "";
+
+					for(i = 0; i < numRows; i++) {
+						var status = statusRows[i].get(0).asString();
+						var count = statusRows[i].get(1).asLong();
+						if(status == "ALARM") {
+							alarmCount = count;
+						} else if(status == "LOST CONNECTION") {
+							lostConCount = count;
+						} else if(status == "WARNING") {
+							warningCount = count;
+						} else if(status == "OK") {
+							okCount = count;
+						} else if(status == "NOT CONNECTED") {
+							notMonCount = count;
+						}
+					}
+
+					if(lostConCount > 0) {
+						summary = summary + ":large_blue_circle: " + lostConCount
+					}
+					if(alarmCount > 0) {
+						if(summary != "") {
+							summary = summary + ", "
+						}
+						summary = summary + ":red_circle: " + alarmCount
+					}
+					if(warningCount > 0) {
+						if(summary != "") {
+							summary = summary + ", "
+						}
+						summary = summary + ":large_orange_circle: " + warningCount
+					}
+					if(okCount > 0) {
+						if(summary != "") {
+							summary = summary + ", "
+						}
+						summary = summary + ":large_green_circle: " + okCount
+					}
+					if(notMonCount > 0) {
+						if(summary != "") {
+							summary = summary + ", "
+						}
+						summary = summary + ":black_circle: " + notMonCount
+					}
+
+					
+					var lostRows = lostres.getRows();
+					var lostNum = lostRows.length;
+					if(lostNum > 0) {
+						summary = summary + "\nLost connection: ";
+					}
+					for(i = 0; i < lostNum; i++) {
+						var name = lostRows[i].get(0).asString();
+						var group = lostRows[i].get(1).asString();
+						var subgroup = lostRows[i].get(2).asString();
+						
+						if(i > 0) {
+							summary = summary + ", ";
+						}
+						summary = summary + "[" + name + "] " + group;
+						if(subgroup != "") {
+							summary = summary + "/" + subgroup;
+						}
+					}
+
+					var alarmRows = alarmres.getRows();
+					var alarmNum = alarmRows.length;
+					if(alarmNum > 0) {
+						summary = summary + "\nAlarm: ";
+					}
+					for(i = 0; i < alarmNum; i++) {
+						var name = alarmRows[i].get(0).asString();
+						var group = alarmRows[i].get(1).asString();
+						var subgroup = alarmRows[i].get(2).asString();
+						
+						if(i > 0) {
+							summary = summary + ", ";
+						}
+						summary = summary + "[" + name + "] " + group;
+						if(subgroup != "") {
+							summary = summary + "/" + subgroup;
+						}
+					}
+
+					result.setProperty("slacksummary", summary)
+                } 
+                catch (err) {
+	                result.setProperty("slacksummary", err)
+                }
+				]]> 
+		</value>
+		<valid-for>1m</valid-for>
+		<storage-policy>STORE_NONE</storage-policy>
+	</property>
+
+</properties>
