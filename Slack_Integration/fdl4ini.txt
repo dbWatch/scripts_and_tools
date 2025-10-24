@@ -1,0 +1,1 @@
+server->s/$s/concat('ACCESSPOINT,',id,',',domain,',TOKEN_',domain)
