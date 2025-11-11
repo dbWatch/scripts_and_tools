@@ -1,8 +1,54 @@
 #!/bin/bash
+# -----------------------------------------------------------------------------
+# dbwatch_cloudRouter.sh
+#
+# Purpose:
+#   Prepare and harden a dbWatch Cloud Router node by validating and (optionally)
+#   correcting key settings in:
+#     - server_configuration.xml (thread pools)
+#     - tuning.properties (scheduler threads/sleep)
+#     - router.json ("forwarding" true, optionally set "discovery" false)
+#     - services.json (service registration)
+#     - governingDomain.json (governing domain)
+#   Also offers cleanup of resources/trust stores to enable a clean rejoin.
+#
+# Requirements:
+#   - Run as a user with sudo privileges (stops/starts systemd service).
+#   - Installed package: dbwatch-controlcenter
+#   - Tools: grep, sed, awk, systemctl, ls, rm
+#   - Optional (recommended): jq   # for safe JSON edits if available
+#
+# Supported OS families:
+#   - Debian/Ubuntu (dpkg)
+#   - RHEL/CentOS/Fedora (rpm/dnf or yum)
+#
+# Files touched (back up recommended):
+#   /var/dbwatch-controlcenter/config/server/server_configuration.xml
+#   /var/dbwatch-controlcenter/config/node/tuning.properties
+#   /var/dbwatch-controlcenter/config/node/router.json
+#   /var/dbwatch-controlcenter/config/node/governingDomain.json
+#   /var/dbwatch-controlcenter/config/services.json
+#
+# Behavior:
+#   - Interactive by default (prompts before each change).
+#   - Stops service before edits; consider starting it again at the end.
+#   - Exits early if dbwatch-controlcenter is not installed.
+#
+# Optional improvements you can enable:
+#   - Non-interactive mode (-y) to auto-apply expected values.
+#   - --dry-run to show changes without writing.
+#   - Automatic JSON edits via jq when present; sed fallback otherwise.
+#
+# -----------------------------------------------------------------------------
+
 
 # Function to check if a package is installed
 is_installed() {
-    dpkg -l | grep -q "$1"
+    if grep -Eiq "rhel|redhat|centos|fedora" /etc/*release; then
+            dnf list installed "$1" &> /dev/null
+        elif grep -Eiq "debian|ubuntu" /etc/*release; then
+            dpkg -l | grep -q "$1"
+        fi
 }
 
 # Function to stop dbwatch-controlcenter service
@@ -32,7 +78,8 @@ check_and_prompt_xml_param() {
             read -p "Do you want to change it to $expected_value? (y/n) " answer
             if [ "$answer" == "y" ]; then
                 stop_dbwatch_controlcenter
-                sed -i "s|<$param>.*</$param>|<$param>$expected_value</$param>|g" "$file"
+               # sed -i "s|<$param>.*</$param>|<$param>$expected_value</$param>|g" "$file"
+	       sed -E -i "s|<${param}>[^<]*</${param}>|<${param}>${expected_value}</${param}>|g" "$file"
                 echo "Parameter $param changed to $expected_value in $file."
             fi
         fi
@@ -55,7 +102,7 @@ check_and_prompt_properties_param() {
             read -p "Do you want to change it to $expected_value? (y/n) " answer
             if [ "$answer" == "y" ]; then
                 stop_dbwatch_controlcenter
-                sed -i "s/^#?${param}.*/${param} = ${expected_value}/" "$file"
+		sed -E -i "s|^[[:space:]#]*(${param})[[:space:]]*=.*|\\1 = ${expected_value}|" "$file"
                 echo "Parameter $param changed to $expected_value in $file."
             fi
         fi
