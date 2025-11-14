@@ -41,6 +41,11 @@
 #
 # -----------------------------------------------------------------------------
 
+# Check if running as root
+if [ "$EUID" -ne 0 ]; then
+    echo "Please run as root"
+    exit
+fi
 
 # Function to check if a package is installed
 is_installed() {
@@ -211,6 +216,7 @@ else
     ]
 }"
         echo "$new_services" > "$services_file"
+	chown dbwatch:dbwatch "$services_file"
         echo "Created $services_file with domain controller $domain_controller."
     fi
 fi
@@ -242,6 +248,7 @@ else
     \"domain\":\"${domain_controller}\"
 }"
         echo "$new_governing" > "$governing_file"
+	chown dbwatch:dbwatch "$governing_file"
         echo "Created $governing_file with domain controller $domain_controller."
     fi
 fi
